@@ -5,23 +5,8 @@ import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIc
 const SITE_PASSWORD = "8888";   // 通關密碼 (給親友看)
 const ADMIN_PASSWORD = "admin"; // 管理員密碼 (匯入檔案用)
 
-// 定義資料介面
-interface Album {
-  id: string;
-  name: string;        
-  category: string;    
-  participants: string;
-  videoLink1?: string; 
-  videoLink2?: string; 
-  videoLink3?: string; 
-  thumbnail?: string;  
-  link: string;        
-  endDate: string;     
-  startDate: string;   
-}
-
 // 根據最新檔案片段重建的預設資料
-const INITIAL_DATA: Album[] = [
+const INITIAL_DATA = [
   // --- 2024 最新資料 ---
   {
     id: '2024-1',
@@ -92,7 +77,7 @@ const INITIAL_DATA: Album[] = [
   }
 ];
 
-const getPlaceholderColor = (category: string) => {
+const getPlaceholderColor = (category) => {
   if (category.includes('聚會') || category.includes('聚餐')) return 'bg-amber-100 text-amber-600';
   if (category.includes('單車')) return 'bg-blue-100 text-blue-600';
   if (category.includes('國外')) return 'bg-purple-100 text-purple-600';
@@ -102,10 +87,10 @@ const getPlaceholderColor = (category: string) => {
 
 const App = () => {
   // 狀態管理
-  const [albums, setAlbums] = useState<Album[]>(INITIAL_DATA);
+  const [albums, setAlbums] = useState(INITIAL_DATA);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | 'All'>('All');
-  const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc'); // 新增排序狀態：預設降冪(新到舊)
+  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [sortOrder, setSortOrder] = useState('desc'); // 新增排序狀態：預設降冪(新到舊)
   const [showBackToTop, setShowBackToTop] = useState(false);
 
   // 安全相關狀態
@@ -132,7 +117,7 @@ const App = () => {
   };
 
   const categories = useMemo(() => {
-    const allCats = new Set<string>();
+    const allCats = new Set();
     albums.forEach(album => {
       const cleanCat = album.category.replace(/^"|"$/g, '');
       const splitCats = cleanCat.split(/,\s*/);
@@ -179,8 +164,8 @@ const App = () => {
   };
 
   // CSV 解析邏輯
-  const parseCSVLine = (line: string): string[] => {
-    const result: string[] = [];
+  const parseCSVLine = (line) => {
+    const result = [];
     let start = 0;
     let inQuotes = false;
     for (let i = 0; i < line.length; i++) {
@@ -201,16 +186,16 @@ const App = () => {
     });
   };
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (e) => {
-      const text = e.target?.result as string;
+      const text = e.target?.result;
       if (!text) return;
       const lines = text.split(/\r\n|\n|\r/); 
-      const newAlbums: Album[] = [];
+      const newAlbums = [];
       
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i].trim();
@@ -248,7 +233,7 @@ const App = () => {
   };
 
   // --- 登入處理 ---
-  const handleSiteLogin = (e: React.FormEvent) => {
+  const handleSiteLogin = (e) => {
     e.preventDefault();
     if (sitePasswordInput === SITE_PASSWORD) {
       setIsSiteLocked(false);
@@ -259,7 +244,7 @@ const App = () => {
   };
 
   // --- 管理員驗證處理 ---
-  const handleAdminAuth = (e: React.FormEvent) => {
+  const handleAdminAuth = (e) => {
     e.preventDefault();
     if (adminPasswordInput === ADMIN_PASSWORD) {
       setIsAdminAuthOpen(false); // 關閉驗證視窗
@@ -308,7 +293,7 @@ const App = () => {
             >
               進入瀏覽
             </button>
-            <p className="text-xs text-stone-400 mt-4">提示：預設密碼為 8888</p>
+            
           </form>
         </div>
       </div>
@@ -471,7 +456,7 @@ const App = () => {
                         className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
                         loading="lazy"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).style.display = 'none';
+                          e.target.style.display = 'none';
                         }}
                       />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
