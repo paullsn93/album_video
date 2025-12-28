@@ -4,12 +4,33 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, getDocs, doc, writeBatch, query, orderBy, onSnapshot } from 'firebase/firestore';
 
-// --- Firebase 初始化 (使用環境變數設定) ---
-const firebaseConfig = JSON.parse(__firebase_config);
-const app = initializeApp(firebaseConfig);
+// --- Firebase 設定區 (請注意這裡) ---
+// 如果您在部署後發現畫面一片白，請將您的 Firebase Config 填入下方
+let firebaseConfig;
+
+try {
+  // 嘗試讀取環境變數 (適用於開發預覽環境)
+  firebaseConfig = JSON.parse(__firebase_config);
+} catch (e) {
+  // ★★★ 如果部署到 GitHub，請將您的 Firebase Config 填寫在這邊 ★★★
+  // 您可以從 Firebase Console -> Project Settings -> General -> Your apps 複製這些資訊
+  firebaseConfig = {
+    apiKey: "AIzaSyAbaXteigP5UTtvZ33XUIrXEumQ8HnRhqs",
+    authDomain: "album-video-246b7.firebaseapp.com",
+    projectId: "album-video-246b7",
+    storageBucket: "album-video-246b7.firebasestorage.app",
+    messagingSenderId: "1077095379252",
+    appId: "1:1077095379252:web:d86c8f21ad2b972be27561",
+    measurementId: "G-DPGPRCD160"
+  };
+}
+
+// 防止 Config 為空導致程式崩潰
+const app = initializeApp(firebaseConfig || {});
 const auth = getAuth(app);
 const db = getFirestore(app);
-const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+// 如果沒有特定 appId，使用預設值
+const appId = (typeof __app_id !== 'undefined') ? __app_id : 'teafriends-gallery';
 
 // --- 安全設定 ---
 const SITE_PASSWORD = "8888";   // 通關密碼
@@ -62,10 +83,17 @@ const App = () => {
   // 1. Firebase Auth 初始化
   useEffect(() => {
     const initAuth = async () => {
-      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-        await signInWithCustomToken(auth, __initial_auth_token);
-      } else {
-        await signInAnonymously(auth);
+      try {
+        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+          await signInWithCustomToken(auth, __initial_auth_token);
+        } else {
+          await signInAnonymously(auth);
+        }
+      } catch (error) {
+        console.error("Firebase Auth Error:", error);
+        // 即便 Auth 失敗，也可以讓 UI 繼續顯示預設資料，而不是崩潰
+        setLoading(false); 
+        setAlbums(INITIAL_DATA);
       }
     };
     initAuth();
@@ -77,29 +105,35 @@ const App = () => {
   useEffect(() => {
     if (!user) return;
 
-    // 使用公開資料路徑
-    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'albums'));
-    
-    // 設置即時監聽器
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const fetchedAlbums = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
+    try {
+      // 使用公開資料路徑
+      const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'albums'));
       
-      if (fetchedAlbums.length > 0) {
-        setAlbums(fetchedAlbums);
-      } else {
-        setAlbums(INITIAL_DATA); // 若資料庫為空，顯示預設範例
-      }
-      setLoading(false);
-    }, (error) => {
-      console.error("Error fetching data:", error);
-      setAlbums(INITIAL_DATA);
-      setLoading(false);
-    });
+      // 設置即時監聽器
+      const unsubscribe = onSnapshot(q, (snapshot) => {
+        const fetchedAlbums = snapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+        
+        if (fetchedAlbums.length > 0) {
+          setAlbums(fetchedAlbums);
+        } else {
+          setAlbums(INITIAL_DATA); // 若資料庫為空，顯示預設範例
+        }
+        setLoading(false);
+      }, (error) => {
+        console.error("Error fetching data:", error);
+        setAlbums(INITIAL_DATA);
+        setLoading(false);
+      });
 
-    return () => unsubscribe();
+      return () => unsubscribe();
+    } catch (error) {
+      console.error("Firestore Init Error:", error);
+      setLoading(false);
+      setAlbums(INITIAL_DATA);
+    }
   }, [user]);
 
   // UI 捲動監聽
@@ -185,14 +219,17 @@ const App = () => {
   // ★★★ 資料庫批次寫入邏輯 ★★★
   const saveToFirestore = async (newAlbums) => {
     if (!user) return;
+    // 檢查是否有有效的配置
+    if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "您的_API_KEY") {
+      alert("請先在程式碼中填寫正確的 Firebase Config 設定！");
+      return;
+    }
+
     setUploadProgress('正在準備寫入資料庫...');
     
     const batchSize = 500; // Firestore 批次限制
     const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'albums');
     
-    // 1. 先清除舊資料 (選擇性，這裡為了避免 ID 衝突建議先清空，或者用 setDoc 覆蓋)
-    // 簡單起見，這裡我們假設是覆蓋更新。真實場景若資料量大需考慮刪除策略。
-    // 為了確保乾淨，我們先讀取並刪除舊文件 (這一步在大數據量時要小心，但目前看起來還好)
     try {
         setUploadProgress('正在清理舊資料...');
         const snapshot = await getDocs(collectionRef);
@@ -202,7 +239,8 @@ const App = () => {
         });
         await deleteBatch.commit();
     } catch (e) {
-        console.error("清理舊資料失敗", e);
+        console.error("清理舊資料失敗 (可能是權限或連線問題)", e);
+        // 不中斷，繼續嘗試寫入
     }
 
     // 2. 分批寫入新資料
@@ -213,7 +251,6 @@ const App = () => {
 
         for (let i = 0; i < newAlbums.length; i++) {
             const album = newAlbums[i];
-            // 使用新產生的 ID 或保留原始 ID
             const docRef = doc(collectionRef); 
             batch.set(docRef, album);
             count++;
@@ -242,6 +279,7 @@ const App = () => {
     } catch (error) {
         console.error("寫入資料庫失敗:", error);
         setUploadProgress('上傳失敗: ' + error.message);
+        alert("上傳失敗，請檢查 Firebase Console 的 Firestore Rules 是否允許寫入。\n錯誤: " + error.message);
     }
   };
 
@@ -264,7 +302,6 @@ const App = () => {
           const rawThumbnail = cols[6] || '';
           const isValidThumbnail = rawThumbnail.startsWith('http');
           newAlbums.push({
-            // 不在這裡產生 ID，交給 Firestore 產生或在寫入時處理
             name: cols[0] || '未命名相簿',
             category: cols[1] || '未分類',
             participants: cols[2] || '',
@@ -280,7 +317,6 @@ const App = () => {
       }
 
       if (newAlbums.length > 0) {
-        // 不再只是 setAlbums，而是寫入資料庫
         saveToFirestore(newAlbums);
       } else {
         alert('無法解析檔案，請確認格式是否正確。');
