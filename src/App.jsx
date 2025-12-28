@@ -2,18 +2,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, getDocs, doc, writeBatch, query, orderBy, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot } from 'firebase/firestore';
 
-// --- Firebase 設定區 (請注意這裡) ---
-// 如果您在部署後發現畫面一片白，請將您的 Firebase Config 填入下方
+// --- Firebase 設定區 (整合版) ---
+// 為了確保單一檔案能運作，我們將設定直接寫在這裡
 let firebaseConfig;
 
 try {
   // 嘗試讀取環境變數 (適用於開發預覽環境)
   firebaseConfig = JSON.parse(__firebase_config);
 } catch (e) {
-  // ★★★ 如果部署到 GitHub，請將您的 Firebase Config 填寫在這邊 ★★★
-  // 您可以從 Firebase Console -> Project Settings -> General -> Your apps 複製這些資訊
+  // ★★★ 如果部署到 GitHub 或其他主機，請確認這些資訊正確 ★★★
   firebaseConfig = {
     apiKey: "AIzaSyAbaXteigP5UTtvZ33XUIrXEumQ8HnRhqs",
     authDomain: "album-video-246b7.firebaseapp.com",
@@ -25,12 +24,15 @@ try {
   };
 }
 
-// 防止 Config 為空導致程式崩潰
+// 初始化 Firebase
 const app = initializeApp(firebaseConfig || {});
 const auth = getAuth(app);
 const db = getFirestore(app);
+
 // 如果沒有特定 appId，使用預設值
-const appId = (typeof __app_id !== 'undefined') ? __app_id : 'teafriends-gallery';
+// 修正：確保 appId 不包含斜線 '/'，否則會導致 Firestore 路徑段數錯誤 (Invalid collection reference)
+const rawAppId = (typeof __app_id !== 'undefined') ? __app_id : 'teafriends-gallery';
+const appId = rawAppId.replace(/\//g, '_');
 
 // --- 安全設定 ---
 const SITE_PASSWORD = "8888";   // 通關密碼
@@ -44,7 +46,7 @@ const INITIAL_DATA = [
     category: '國內旅遊, 爬山',
     participants: '羅家1人, 陽家2人',
     videoLink1: '',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczODW_eCrv2L_qGXX9QZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZ=w3120-h1756-s-no-gm?authuser=1',
+    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczODW_eCrv2L_qGXX9QZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZ=w3120-h1756-s-no-gm?authuser=1',
     link: 'https://photos.app.goo.gl/78jEZ78wrAksqNdE9',
     startDate: '2024/03/24',
     endDate: '2024/03/24'
@@ -218,11 +220,9 @@ const App = () => {
 
   // ★★★ 資料庫批次寫入邏輯 ★★★
   const saveToFirestore = async (newAlbums) => {
-    if (!user) return;
-    // 檢查是否有有效的配置
-    if (!firebaseConfig || !firebaseConfig.apiKey || firebaseConfig.apiKey === "您的_API_KEY") {
-      alert("請先在程式碼中填寫正確的 Firebase Config 設定！");
-      return;
+    if (!user) {
+        alert("尚未登入 Firebase，無法寫入資料。請確認網路連線或重新整理頁面。");
+        return;
     }
 
     setUploadProgress('正在準備寫入資料庫...');
@@ -279,7 +279,12 @@ const App = () => {
     } catch (error) {
         console.error("寫入資料庫失敗:", error);
         setUploadProgress('上傳失敗: ' + error.message);
-        alert("上傳失敗，請檢查 Firebase Console 的 Firestore Rules 是否允許寫入。\n錯誤: " + error.message);
+        // 👇 更清楚的錯誤提示
+        if (error.code === 'permission-denied') {
+            alert("上傳失敗：權限不足。\n請到 Firebase Console -> Firestore Database -> Rules，將 allow write 設為 true。");
+        } else {
+            alert("上傳失敗，錯誤訊息: " + error.message);
+        }
     }
   };
 
@@ -431,12 +436,12 @@ const App = () => {
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
                 {searchTerm && (
-                   <button 
-                     onClick={() => setSearchTerm('')}
-                     className="absolute inset-y-0 right-0 pr-3 flex items-center text-stone-400 hover:text-stone-600"
-                   >
-                     <X className="w-4 h-4" />
-                   </button>
+                    <button 
+                      onClick={() => setSearchTerm('')}
+                      className="absolute inset-y-0 right-0 pr-3 flex items-center text-stone-400 hover:text-stone-600"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                 )}
               </div>
               
@@ -515,7 +520,7 @@ const App = () => {
             </span>
           </h2>
           <span className="text-xs text-stone-400">
-             排序方式：{sortOrder === 'desc' ? '日期 (新→舊)' : '日期 (舊→新)'}
+              排序方式：{sortOrder === 'desc' ? '日期 (新→舊)' : '日期 (舊→新)'}
           </span>
         </div>
 
@@ -549,17 +554,17 @@ const App = () => {
                 >
                   {album.thumbnail ? (
                     <div className="w-full h-full relative overflow-hidden">
-                       <img 
-                        src={album.thumbnail} 
-                        alt={album.name} 
-                        referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
-                        loading="lazy"
-                        onError={(e) => {
-                          e.target.style.display = 'none';
-                        }}
-                      />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                        <img 
+                          src={album.thumbnail} 
+                          alt={album.name} 
+                          referrerPolicy="no-referrer"
+                          className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                          loading="lazy"
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                          }}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                     </div>
                   ) : (
                     <div className="w-full h-full flex flex-col items-center justify-center relative">
@@ -595,7 +600,7 @@ const App = () => {
                   </h3>
 
                   <div className="mb-4">
-                     <div className="flex items-start gap-2">
+                      <div className="flex items-start gap-2">
                         <Users className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />
                         <p className="text-xs text-stone-500 leading-relaxed line-clamp-2 hover:line-clamp-none transition-all cursor-default" title={album.participants}>
                             {album.participants || "未記錄參與者"}
@@ -612,7 +617,7 @@ const App = () => {
                              <span className="truncate">影片 1</span>
                           </a>
                         )}
-                         {album.videoLink2 && (
+                          {album.videoLink2 && (
                           <a href={album.videoLink2} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 group/btn">
                              <PlayCircle className="w-3.5 h-3.5 group-hover/btn:fill-current" /> 
                              <span className="truncate">影片 2</span>
@@ -624,7 +629,7 @@ const App = () => {
                                 紀錄影片
                             </span>
                         )}
-                         {album.videoLink3 && (
+                          {album.videoLink3 && (
                           <a href={album.videoLink3} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 group/btn">
                              <PlayCircle className="w-3.5 h-3.5 group-hover/btn:fill-current" />
                              <span className="truncate">影片 3</span>
