@@ -392,7 +392,7 @@ const App = () => {
             >
               進入瀏覽
             </button>
-            <p className="text-xs text-stone-400 mt-4">提示：預設密碼為 8888</p>
+            
           </form>
         </div>
       </div>
