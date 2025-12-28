@@ -1,13 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide } from 'lucide-react';
+import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw } from 'lucide-react';
+import { initializeApp } from 'firebase/app';
+import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
+import { getFirestore, collection, getDocs, doc, writeBatch, query, orderBy, onSnapshot } from 'firebase/firestore';
 
-// --- 安全設定 (您可以自行修改這裡的密碼) ---
-const SITE_PASSWORD = "8888";   // 通關密碼 (給親友看)
-const ADMIN_PASSWORD = "admin"; // 管理員密碼 (匯入檔案用)
+// --- Firebase 初始化 (使用環境變數設定) ---
+const firebaseConfig = JSON.parse(__firebase_config);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-// 根據最新檔案片段重建的預設資料
+// --- 安全設定 ---
+const SITE_PASSWORD = "8888";   // 通關密碼
+const ADMIN_PASSWORD = "admin"; // 管理員密碼
+
+// 預設資料 (僅在資料庫連線前或全空時顯示)
 const INITIAL_DATA = [
-  // --- 2024 最新資料 ---
   {
     id: '2024-1',
     name: '20240324探訪柴山秘境(二)',
@@ -18,62 +27,6 @@ const INITIAL_DATA = [
     link: 'https://photos.app.goo.gl/78jEZ78wrAksqNdE9',
     startDate: '2024/03/24',
     endDate: '2024/03/24'
-  },
-  {
-    id: '2024-2',
-    name: '20240316茶友會溪頭之旅',
-    category: '國內旅遊, 爬山',
-    participants: '凌家2人, 曾家2人, 羅家2人, 邱家2人, 陽家2人',
-    videoLink1: 'https://youtu.be/vqHRaOmixWY',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczMv6DOSnQBnHB8Vedy2Z1h5Pzj4Ko8dl8I0Rnd3_D0vtxn8aV3GjlP3abZ8_8nJZCnvagE2qrl3F2XHF_2tsuUMNt1_pE84Zyr7tIuQzSdqs6QJYEdrhADKC_cthGnU8KvlRxPbTNAptrNnuMnTZk84Pw=w3120-h1756-s-no-gm?authuser=1',
-    link: 'https://photos.app.goo.gl/g5vn39MwwF38KgFz5',
-    startDate: '2024/03/16',
-    endDate: '2024/03/17'
-  },
-  {
-    id: '2024-3',
-    name: '20240302探訪柴山秘境',
-    category: '國內旅遊, 爬山',
-    participants: '羅家1人, 陽家2人',
-    videoLink1: '',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczP-0RBscfD2GlFOoN4...', 
-    link: '',
-    startDate: '2024/03/02',
-    endDate: '2024/03/02'
-  },
-  // --- 2023 資料 ---
-  {
-    id: '2023-1',
-    name: '20230819-22茶友會花東之旅',
-    category: '國內旅遊',
-    participants: '凌家2人, 曾家2人, 羅家2人, 邱家2人, 陽家2人, 黃家2人',
-    videoLink1: 'https://youtu.be/tatq-kxEtVI',
-    videoLink2: 'https://youtu.be/MXtNm3vcBq8',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczN7l8MaxIYZKe64NZ8MlLWrmEsi3gTt_96pik7HC2pohmolWFxoTXA4EyWkgF1v-44yEI5k45DCc9COJG4zTcmylzFBAIITWqGOSGgCIniElJn_gdwq9LSVOKvhjNtYpzpT7d6nAc830iY_bo3IMoYuhA=w2705-h1805-s-no-gm?authuser=0',
-    link: 'https://reurl.cc/g4zYp7',
-    startDate: '2023/08/19',
-    endDate: '2023/08/22'
-  },
-  {
-    id: '2023-2',
-    name: '20231129碧潭新店溪河岸單車遊',
-    category: '單車, 國內旅遊',
-    participants: '羅家2人, 邱家2人',
-    videoLink1: 'https://youtu.be/0Yv44QQDXQ8',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczOvSLEnzqI...',
-    link: 'https://reurl.cc/zlW577',
-    startDate: '2023/11/29',
-    endDate: '2023/11/29'
-  },
-  // --- 舊資料範例 ---
-  { 
-    id: 'old-1', 
-    name: '2008年寒假之旅相簿', 
-    category: '旅遊', 
-    participants: '羅家4人, 邱家4人, 陽家3人', 
-    link: 'https://reurl.cc/2zZMDr', 
-    startDate: '2008/01/18', 
-    endDate: '2008/01/24' 
   }
 ];
 
@@ -87,24 +40,70 @@ const getPlaceholderColor = (category) => {
 
 const App = () => {
   // 狀態管理
-  const [albums, setAlbums] = useState(INITIAL_DATA);
+  const [albums, setAlbums] = useState([]); // 初始為空，等待資料庫
+  const [loading, setLoading] = useState(true); // 載入狀態
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [sortOrder, setSortOrder] = useState('desc'); // 新增排序狀態：預設降冪(新到舊)
+  const [sortOrder, setSortOrder] = useState('desc');
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [user, setUser] = useState(null);
 
   // 安全相關狀態
-  const [isSiteLocked, setIsSiteLocked] = useState(true); // 預設鎖定
+  const [isSiteLocked, setIsSiteLocked] = useState(true);
   const [sitePasswordInput, setSitePasswordInput] = useState('');
   const [loginError, setLoginError] = useState('');
   
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
-  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false); // 管理員驗證視窗
+  const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [uploadProgress, setUploadProgress] = useState(''); // 上傳進度顯示
 
+  // 1. Firebase Auth 初始化
   useEffect(() => {
-    // 檢查是否有登入紀錄 (可選，這裡為了示範每次重整都鎖定，若要記憶可存 localStorage)
+    const initAuth = async () => {
+      if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+        await signInWithCustomToken(auth, __initial_auth_token);
+      } else {
+        await signInAnonymously(auth);
+      }
+    };
+    initAuth();
+    const unsubscribe = onAuthStateChanged(auth, setUser);
+    return () => unsubscribe();
+  }, []);
+
+  // 2. 從 Firestore 讀取資料
+  useEffect(() => {
+    if (!user) return;
+
+    // 使用公開資料路徑
+    const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'albums'));
+    
+    // 設置即時監聽器
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const fetchedAlbums = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      }));
+      
+      if (fetchedAlbums.length > 0) {
+        setAlbums(fetchedAlbums);
+      } else {
+        setAlbums(INITIAL_DATA); // 若資料庫為空，顯示預設範例
+      }
+      setLoading(false);
+    }, (error) => {
+      console.error("Error fetching data:", error);
+      setAlbums(INITIAL_DATA);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [user]);
+
+  // UI 捲動監聽
+  useEffect(() => {
     const handleScroll = () => {
       setShowBackToTop(window.scrollY > 300);
     };
@@ -119,7 +118,7 @@ const App = () => {
   const categories = useMemo(() => {
     const allCats = new Set();
     albums.forEach(album => {
-      const cleanCat = album.category.replace(/^"|"$/g, '');
+      const cleanCat = album.category ? album.category.replace(/^"|"$/g, '') : '一般';
       const splitCats = cleanCat.split(/,\s*/);
       splitCats.forEach(c => {
         if (c.trim()) allCats.add(c.trim());
@@ -130,25 +129,23 @@ const App = () => {
 
   // 排序與過濾邏輯
   const filteredAlbums = useMemo(() => {
-    // 1. 先過濾
     const filtered = albums.filter(album => {
       const matchesSearch = 
-        album.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        album.participants.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        album.startDate.includes(searchTerm) ||
-        album.endDate.includes(searchTerm);
+        (album.name && album.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (album.participants && album.participants.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (album.startDate && album.startDate.includes(searchTerm)) ||
+        (album.endDate && album.endDate.includes(searchTerm));
       
-      const cleanCat = album.category.replace(/^"|"$/g, '');
+      const cleanCat = album.category ? album.category.replace(/^"|"$/g, '') : '';
       const matchesCategory = selectedCategory === 'All' || cleanCat.includes(selectedCategory);
       return matchesSearch && matchesCategory;
     });
 
-    // 2. 再排序
     return filtered.sort((a, b) => {
-      const dateA = new Date(a.startDate).getTime();
-      const dateB = new Date(b.startDate).getTime();
+      // 處理日期格式 (YYYY/MM/DD 或 YYYY-MM-DD)
+      const dateA = new Date(a.startDate ? a.startDate.replace(/\//g, '-') : '').getTime();
+      const dateB = new Date(b.startDate ? b.startDate.replace(/\//g, '-') : '').getTime();
       
-      // 處理無效日期 (將無效日期排到最後)
       const validA = !isNaN(dateA);
       const validB = !isNaN(dateB);
       if (!validA && !validB) return 0;
@@ -163,7 +160,6 @@ const App = () => {
     setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc');
   };
 
-  // CSV 解析邏輯
   const parseCSVLine = (line) => {
     const result = [];
     let start = 0;
@@ -186,6 +182,69 @@ const App = () => {
     });
   };
 
+  // ★★★ 資料庫批次寫入邏輯 ★★★
+  const saveToFirestore = async (newAlbums) => {
+    if (!user) return;
+    setUploadProgress('正在準備寫入資料庫...');
+    
+    const batchSize = 500; // Firestore 批次限制
+    const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'albums');
+    
+    // 1. 先清除舊資料 (選擇性，這裡為了避免 ID 衝突建議先清空，或者用 setDoc 覆蓋)
+    // 簡單起見，這裡我們假設是覆蓋更新。真實場景若資料量大需考慮刪除策略。
+    // 為了確保乾淨，我們先讀取並刪除舊文件 (這一步在大數據量時要小心，但目前看起來還好)
+    try {
+        setUploadProgress('正在清理舊資料...');
+        const snapshot = await getDocs(collectionRef);
+        const deleteBatch = writeBatch(db);
+        snapshot.docs.forEach((doc) => {
+            deleteBatch.delete(doc.ref);
+        });
+        await deleteBatch.commit();
+    } catch (e) {
+        console.error("清理舊資料失敗", e);
+    }
+
+    // 2. 分批寫入新資料
+    try {
+        let batch = writeBatch(db);
+        let count = 0;
+        let totalBatches = 0;
+
+        for (let i = 0; i < newAlbums.length; i++) {
+            const album = newAlbums[i];
+            // 使用新產生的 ID 或保留原始 ID
+            const docRef = doc(collectionRef); 
+            batch.set(docRef, album);
+            count++;
+
+            if (count >= batchSize) {
+                await batch.commit();
+                batch = writeBatch(db);
+                count = 0;
+                totalBatches++;
+                setUploadProgress(`已上傳 ${i + 1} / ${newAlbums.length} 筆資料...`);
+            }
+        }
+
+        if (count > 0) {
+            await batch.commit();
+        }
+        
+        setUploadProgress('完成！資料已同步到雲端。');
+        setTimeout(() => {
+            setIsUploadModalOpen(false);
+            setUploadProgress('');
+            setSearchTerm('');
+            setSelectedCategory('All');
+        }, 1500);
+
+    } catch (error) {
+        console.error("寫入資料庫失敗:", error);
+        setUploadProgress('上傳失敗: ' + error.message);
+    }
+  };
+
   const handleFileUpload = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -205,7 +264,7 @@ const App = () => {
           const rawThumbnail = cols[6] || '';
           const isValidThumbnail = rawThumbnail.startsWith('http');
           newAlbums.push({
-            id: `imported-${i}-${Date.now()}`,
+            // 不在這裡產生 ID，交給 Firestore 產生或在寫入時處理
             name: cols[0] || '未命名相簿',
             category: cols[1] || '未分類',
             participants: cols[2] || '',
@@ -221,10 +280,8 @@ const App = () => {
       }
 
       if (newAlbums.length > 0) {
-        setAlbums(newAlbums);
-        setIsUploadModalOpen(false);
-        setSearchTerm('');
-        alert(`成功匯入 ${newAlbums.length} 筆資料！`);
+        // 不再只是 setAlbums，而是寫入資料庫
+        saveToFirestore(newAlbums);
       } else {
         alert('無法解析檔案，請確認格式是否正確。');
       }
@@ -247,10 +304,10 @@ const App = () => {
   const handleAdminAuth = (e) => {
     e.preventDefault();
     if (adminPasswordInput === ADMIN_PASSWORD) {
-      setIsAdminAuthOpen(false); // 關閉驗證視窗
-      setIsUploadModalOpen(true); // 開啟上傳視窗
+      setIsAdminAuthOpen(false); 
+      setIsUploadModalOpen(true); 
       setAdminError('');
-      setAdminPasswordInput(''); // 清空密碼
+      setAdminPasswordInput(''); 
     } else {
       setAdminError('管理員密碼錯誤');
     }
@@ -262,7 +319,7 @@ const App = () => {
     setAdminPasswordInput('');
   };
 
-  // 如果網站被鎖定，顯示鎖定畫面
+  // 鎖定畫面
   if (isSiteLocked) {
     return (
       <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
@@ -274,7 +331,6 @@ const App = () => {
             <h1 className="text-2xl font-bold text-stone-800 mb-2">茶友時光 - 專屬回憶錄</h1>
             <p className="text-stone-500">此頁面為私人珍藏，請輸入通關密碼以繼續。</p>
           </div>
-          
           <form onSubmit={handleSiteLogin} className="space-y-4">
             <div className="relative">
               <input
@@ -293,7 +349,7 @@ const App = () => {
             >
               進入瀏覽
             </button>
-            
+            <p className="text-xs text-stone-400 mt-4">提示：預設密碼為 8888</p>
           </form>
         </div>
       </div>
@@ -316,7 +372,13 @@ const App = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">茶友時光</h1>
-                <p className="text-xs text-stone-500 font-medium">歷年影音與相簿典藏 ({albums.length})</p>
+                <p className="text-xs text-stone-500 font-medium flex items-center gap-1">
+                  {loading ? (
+                    <span className="flex items-center text-teal-600"><RefreshCw className="w-3 h-3 animate-spin mr-1"/> 讀取雲端資料...</span>
+                  ) : (
+                    <span className="flex items-center"><Cloud className="w-3 h-3 mr-1"/> 共 {albums.length} 本相簿</span>
+                  )}
+                </p>
               </div>
             </div>
 
@@ -342,14 +404,13 @@ const App = () => {
                 )}
               </div>
               
-              {/* 匯入按鈕：現在會觸發管理員驗證 */}
               <button 
                 onClick={openAdminCheck}
                 className="p-2.5 text-stone-500 bg-white border border-stone-200 hover:text-teal-600 hover:border-teal-200 hover:bg-teal-50 rounded-full transition-all shadow-sm tooltip flex items-center gap-2"
-                title="匯入您的 CSV 檔案 (限管理員)"
+                title="更新資料庫 (限管理員)"
               >
                 <ShieldCheck className="w-5 h-5" />
-                <span className="text-xs font-medium hidden md:inline">管理者匯入</span>
+                <span className="text-xs font-medium hidden md:inline">管理員更新</span>
               </button>
             </div>
           </div>
@@ -357,7 +418,6 @@ const App = () => {
           {/* Categories Filter & Sort */}
           <div className="mt-4 flex flex-wrap gap-2 pb-1 overflow-x-auto no-scrollbar items-center select-none">
             
-            {/* 排序按鈕 */}
             <button
               onClick={toggleSortOrder}
               className="flex items-center gap-1.5 px-3 py-1 bg-white text-stone-600 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 rounded-full text-xs font-medium transition-all mr-2"
@@ -415,7 +475,7 @@ const App = () => {
           <h2 className="text-xl font-bold text-stone-800 flex items-center gap-2">
             {selectedCategory === 'All' ? '所有活動' : selectedCategory}
             <span className="text-sm font-normal text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
-              {filteredAlbums.length}
+              {loading ? '載入中...' : filteredAlbums.length}
             </span>
           </h2>
           <span className="text-xs text-stone-400">
@@ -423,28 +483,32 @@ const App = () => {
           </span>
         </div>
 
-        {filteredAlbums.length > 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-pulse">
+             {[1,2,3,4,5,6].map(i => (
+               <div key={i} className="h-80 bg-stone-200 rounded-xl"></div>
+             ))}
+          </div>
+        ) : filteredAlbums.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             {filteredAlbums.map((album) => (
               <article 
                 key={album.id} 
                 className="group bg-white rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-stone-100 overflow-hidden transition-all duration-300 flex flex-col h-full relative"
               >
-                {/* Category Tags */}
                 <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1">
-                  {album.category.replace(/^"|"$/g, '').split(/,\s*/).map((tag, idx) => (
+                  {album.category && album.category.replace(/^"|"$/g, '').split(/,\s*/).map((tag, idx) => (
                     <span key={idx} className="bg-white/90 backdrop-blur-md text-stone-700 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-stone-100">
                       {tag.trim()}
                     </span>
                   ))}
                 </div>
 
-                {/* Cover Image Area */}
                 <a 
                   href={album.link || '#'} 
                   target="_blank" 
                   rel="noopener noreferrer"
-                  className={`block h-52 w-full ${getPlaceholderColor(album.category)} relative overflow-hidden cursor-pointer group-hover:brightness-105 transition-all`}
+                  className={`block h-52 w-full ${getPlaceholderColor(album.category || '')} relative overflow-hidden cursor-pointer group-hover:brightness-105 transition-all`}
                   title={album.link ? "點擊開啟 Google 相簿" : "無相簿連結"}
                 >
                   {album.thumbnail ? (
@@ -476,9 +540,7 @@ const App = () => {
                   )}
                 </a>
 
-                {/* Content Area */}
                 <div className="p-5 flex-1 flex flex-col">
-                  {/* Date */}
                   <div className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 mb-2">
                     <Calendar className="w-3.5 h-3.5" />
                     <time>{album.startDate}</time>
@@ -490,14 +552,12 @@ const App = () => {
                     )}
                   </div>
 
-                  {/* Title */}
                   <h3 className="text-lg font-bold text-stone-800 leading-snug mb-3 line-clamp-2 group-hover:text-teal-700 transition-colors">
                     <a href={album.link || '#'} target="_blank" rel="noopener noreferrer">
                       {album.name}
                     </a>
                   </h3>
 
-                  {/* Participants */}
                   <div className="mb-4">
                      <div className="flex items-start gap-2">
                         <Users className="w-4 h-4 text-stone-400 mt-0.5 flex-shrink-0" />
@@ -507,7 +567,6 @@ const App = () => {
                     </div>
                   </div>
 
-                  {/* Footer: Videos */}
                   <div className="mt-auto pt-4 border-t border-stone-100 flex items-center gap-2 flex-wrap min-h-[40px]">
                     {(album.videoLink1 || album.videoLink2 || album.videoLink3) ? (
                       <div className="flex gap-2 w-full">
@@ -563,7 +622,6 @@ const App = () => {
         )}
       </main>
 
-      {/* Back to Top Button */}
       <button
         onClick={scrollToTop}
         className={`fixed bottom-8 right-8 p-3.5 bg-stone-800 text-white rounded-full shadow-xl hover:bg-teal-600 transition-all duration-500 z-40 transform hover:scale-110 ${
@@ -574,7 +632,6 @@ const App = () => {
         <ChevronUp className="w-5 h-5" />
       </button>
 
-      {/* Footer */}
       <footer className="bg-white border-t border-stone-200 py-10 mt-12">
         <div className="max-w-7xl mx-auto px-4 text-center">
           <p className="text-stone-800 font-bold mb-2">茶友時光 Tea Friends Memories</p>
@@ -582,7 +639,6 @@ const App = () => {
         </div>
       </footer>
 
-      {/* Admin Auth Modal (管理員驗證視窗) */}
       {isAdminAuthOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
           <div className="bg-white rounded-xl shadow-2xl max-w-sm w-full p-6 animate-in fade-in zoom-in duration-200">
@@ -617,7 +673,6 @@ const App = () => {
         </div>
       )}
 
-      {/* Upload Modal (上傳視窗) */}
       {isUploadModalOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200 relative overflow-hidden">
@@ -630,35 +685,44 @@ const App = () => {
             </button>
 
             <div className="flex items-center gap-2 mb-2">
-               <ShieldCheck className="w-6 h-6 text-teal-600" />
-               <h3 className="text-2xl font-bold text-stone-800">匯入完整檔案</h3>
+               <Cloud className="w-6 h-6 text-teal-600" />
+               <h3 className="text-2xl font-bold text-stone-800">更新雲端資料庫</h3>
             </div>
             
             <p className="text-sm text-stone-500 mb-6 leading-relaxed">
-              請上傳您的 <code>.csv</code> 檔案。
+              請上傳您的 <code>.csv</code> 檔案。系統會將內容同步至雲端，所有使用者重新整理後皆可看到最新資料。
               <br/>
-              <span className="text-amber-600 font-medium">注意：</span>此功能僅開放給管理員，請確保檔案格式正確。
+              <span className="text-amber-600 font-medium">注意：</span>這將覆蓋現有資料庫內容。
             </p>
 
-            <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-stone-200 border-dashed rounded-xl cursor-pointer hover:bg-teal-50/50 hover:border-teal-400 transition-all group relative overflow-hidden">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
-                    <div className="p-3 bg-stone-100 rounded-full mb-3 group-hover:bg-white group-hover:text-teal-500 transition-all shadow-sm">
-                      <Upload className="w-6 h-6 text-stone-400 group-hover:text-teal-500" />
-                    </div>
-                    <p className="mb-1 text-sm text-stone-600 font-medium group-hover:text-teal-700">點擊選擇檔案 或 拖曳至此</p>
-                    <p className="text-xs text-stone-400">支援 CSV 格式</p>
+            {uploadProgress ? (
+                <div className="w-full py-8 text-center">
+                    <RefreshCw className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-2" />
+                    <p className="text-stone-600 font-medium">{uploadProgress}</p>
                 </div>
-                <input type="file" className="hidden" accept=".csv,.tsv,.txt" onChange={handleFileUpload} />
-            </label>
+            ) : (
+                <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-stone-200 border-dashed rounded-xl cursor-pointer hover:bg-teal-50/50 hover:border-teal-400 transition-all group relative overflow-hidden">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
+                        <div className="p-3 bg-stone-100 rounded-full mb-3 group-hover:bg-white group-hover:text-teal-500 transition-all shadow-sm">
+                        <Upload className="w-6 h-6 text-stone-400 group-hover:text-teal-500" />
+                        </div>
+                        <p className="mb-1 text-sm text-stone-600 font-medium group-hover:text-teal-700">點擊選擇檔案 或 拖曳至此</p>
+                        <p className="text-xs text-stone-400">支援 CSV 格式</p>
+                    </div>
+                    <input type="file" className="hidden" accept=".csv,.tsv,.txt" onChange={handleFileUpload} />
+                </label>
+            )}
             
-            <div className="mt-8 flex justify-end gap-3">
-                <button 
-                    onClick={() => setIsUploadModalOpen(false)}
-                    className="px-5 py-2 text-stone-500 font-medium hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors"
-                >
-                    關閉
-                </button>
-            </div>
+            {!uploadProgress && (
+                <div className="mt-8 flex justify-end gap-3">
+                    <button 
+                        onClick={() => setIsUploadModalOpen(false)}
+                        className="px-5 py-2 text-stone-500 font-medium hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors"
+                    >
+                        關閉
+                    </button>
+                </div>
+            )}
           </div>
         </div>
       )}
