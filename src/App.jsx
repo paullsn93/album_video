@@ -46,7 +46,7 @@ const INITIAL_DATA = [
     category: '國內旅遊, 爬山',
     participants: '羅家1人, 陽家2人',
     videoLink1: '',
-    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczODW_eCrv2L_qGXX9QZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZ=w3120-h1756-s-no-gm?authuser=1',
+    thumbnail: 'https://lh3.googleusercontent.com/pw/AP1GczODW_eCrv2L_qGXX9QZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZqZ=w3120-h1756-s-no-gm?authuser=1',
     link: 'https://photos.app.goo.gl/78jEZ78wrAksqNdE9',
     startDate: '2024/03/24',
     endDate: '2024/03/24'
@@ -69,6 +69,8 @@ const App = () => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [sortOrder, setSortOrder] = useState('desc');
   const [showBackToTop, setShowBackToTop] = useState(false);
+  
+  // user 狀態保留供參考，但不再用於阻擋
   const [user, setUser] = useState(null);
 
   // 安全相關狀態
@@ -82,7 +84,7 @@ const App = () => {
   const [adminError, setAdminError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(''); // 上傳進度顯示
 
-  // 1. Firebase Auth 初始化
+  // 1. Firebase Auth 初始化 (背景執行，不阻擋)
   useEffect(() => {
     const initAuth = async () => {
       try {
@@ -92,10 +94,7 @@ const App = () => {
           await signInAnonymously(auth);
         }
       } catch (error) {
-        console.error("Firebase Auth Error:", error);
-        // 即便 Auth 失敗，也可以讓 UI 繼續顯示預設資料，而不是崩潰
-        setLoading(false); 
-        setAlbums(INITIAL_DATA);
+        console.warn("Auth init warning (ignoring due to public access mode):", error);
       }
     };
     initAuth();
@@ -103,10 +102,10 @@ const App = () => {
     return () => unsubscribe();
   }, []);
 
-  // 2. 從 Firestore 讀取資料
+  // 2. 從 Firestore 讀取資料 (已移除使用者檢查)
   useEffect(() => {
-    if (!user) return;
-
+    // 移除 check: if (!user) return;
+    
     try {
       // 使用公開資料路徑
       const q = query(collection(db, 'artifacts', appId, 'public', 'data', 'albums'));
@@ -136,7 +135,7 @@ const App = () => {
       setLoading(false);
       setAlbums(INITIAL_DATA);
     }
-  }, [user]);
+  }, []); // 移除 user 依賴，確保掛載即執行
 
   // UI 捲動監聽
   useEffect(() => {
@@ -218,12 +217,15 @@ const App = () => {
     });
   };
 
-  // ★★★ 資料庫批次寫入邏輯 ★★★
+  // ★★★ 資料庫批次寫入邏輯 (強制模式) ★★★
   const saveToFirestore = async (newAlbums) => {
+    // 移除登入檢查，直接進行寫入
+    /*
     if (!user) {
-        alert("尚未登入 Firebase，無法寫入資料。請確認網路連線或重新整理頁面。");
+        alert("尚未登入 Firebase...");
         return;
     }
+    */
 
     setUploadProgress('正在準備寫入資料庫...');
     
@@ -239,7 +241,7 @@ const App = () => {
         });
         await deleteBatch.commit();
     } catch (e) {
-        console.error("清理舊資料失敗 (可能是權限或連線問題)", e);
+        console.error("清理舊資料失敗 (可能是連線問題)", e);
         // 不中斷，繼續嘗試寫入
     }
 
@@ -279,7 +281,7 @@ const App = () => {
     } catch (error) {
         console.error("寫入資料庫失敗:", error);
         setUploadProgress('上傳失敗: ' + error.message);
-        // 👇 更清楚的錯誤提示
+        // 提供錯誤提示，包含 Rules 設定提醒
         if (error.code === 'permission-denied') {
             alert("上傳失敗：權限不足。\n請到 Firebase Console -> Firestore Database -> Rules，將 allow write 設為 true。");
         } else {
@@ -662,23 +664,6 @@ const App = () => {
           </div>
         )}
       </main>
-
-      <button
-        onClick={scrollToTop}
-        className={`fixed bottom-8 right-8 p-3.5 bg-stone-800 text-white rounded-full shadow-xl hover:bg-teal-600 transition-all duration-500 z-40 transform hover:scale-110 ${
-          showBackToTop ? 'translate-y-0 opacity-100' : 'translate-y-16 opacity-0 pointer-events-none'
-        }`}
-        title="回到頂端"
-      >
-        <ChevronUp className="w-5 h-5" />
-      </button>
-
-      <footer className="bg-white border-t border-stone-200 py-10 mt-12">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-          <p className="text-stone-800 font-bold mb-2">茶友時光 Tea Friends Memories</p>
-          <p className="text-stone-400 text-xs">© {new Date().getFullYear()} 珍貴回憶錄 • 建議使用電腦瀏覽以獲得最佳體驗</p>
-        </div>
-      </footer>
 
       {isAdminAuthOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 transition-opacity duration-300">
