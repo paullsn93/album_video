@@ -20,10 +20,8 @@ const app = initializeApp(firebaseConfig || {});
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// 如果沒有特定 appId，使用預設值
 // 修正：確保 appId 不包含斜線 '/'，否則會導致 Firestore 路徑段數錯誤 (Invalid collection reference)
-const rawAppId = (typeof __app_id !== 'undefined') ? __app_id : 'teafriends-gallery';
-const appId = rawAppId.replace(/\//g, '_');
+const appId = 'teafriends-gallery';
 
 // --- 安全設定 ---
 const SITE_PASSWORD = import.meta.env.VITE_SITE_PASSWORD || "8888";   // 通關密碼
@@ -477,8 +475,8 @@ const App = () => {
             <button
               onClick={() => setSelectedCategory('All')}
               className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${selectedCategory === 'All'
-                  ? 'bg-stone-800 text-white shadow-md transform scale-105'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:bg-stone-50'
+                ? 'bg-stone-800 text-white shadow-md transform scale-105'
+                : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:bg-stone-50'
                 }`}
             >
               全部
@@ -488,8 +486,8 @@ const App = () => {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap ${selectedCategory === cat
-                    ? 'bg-teal-600 text-white shadow-md transform scale-105'
-                    : 'bg-white text-stone-600 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
+                  ? 'bg-teal-600 text-white shadow-md transform scale-105'
+                  : 'bg-white text-stone-600 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
                   }`}
               >
                 {cat}
