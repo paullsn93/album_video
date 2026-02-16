@@ -1,16 +1,42 @@
-# React + Vite
+# 茶友時光 - 雲端回憶相冊與影片館
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+這是一個基於 **React** 與 **Firebase** 開發的個人化雲端相簿管理系統。旨在提供茶友們一個私密、優雅且高效的活動紀錄瀏覽空間。
 
-Currently, two official plugins are available:
+## 🌟 主要功能
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **雲端同步存取：** 即時從 Firestore 讀取最新的相簿資料。
+- **多維度篩選：** 支援透過活動名稱、參與者或日期進行關鍵字搜尋，並提供分類標籤（如：國內旅遊、爬山、聚餐等）一鍵篩選。
+- **影片整合瀏覽：** 每個活動可連結多個 YouTube 影片，直接跳轉觀看精彩紀錄。
+- **管理員更新：** 內建管理員驗證機制，支援上傳 `.csv` 檔案快速更新雲端資料庫。
+- **安全防護：** 
+  - 訪客進入需輸入通關密碼。
+  - 配置環境變數管理敏感金鑰，確保原始碼安全性。
 
-## React Compiler
+## 🛠️ 技術棧
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- **Frontend:** React, Vite, Tailwind CSS
+- **Backend:** Firebase App (Auth, Firestore, Analytics)
+- **Icons:** Lucide React
 
-## Expanding the ESLint configuration
+## 🚀 快速開始
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 1. 安裝依賴
+```bash
+npm install
+```
+
+### 2. 環境變數設定
+請在專案根目錄建立 `.env` 檔案，內容參考 `.env.example`：
+```env
+VITE_FIREBASE_API_KEY=你的_API_KEY
+VITE_FIREBASE_PROJECT_ID=你的_專案ID
+# ...其餘其項請自行填入
+```
+
+### 3. 本地運作
+```bash
+npm run dev
+```
+
+## 📝 開發記錄
+詳細的安全性修復與更新步驟請參閱 [Log01_Security.md](./Log01_Security.md)。

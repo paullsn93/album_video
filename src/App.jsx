@@ -4,25 +4,16 @@ import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot } from 'firebase/firestore';
 
-// --- Firebase 設定區 (整合版) ---
-// 為了確保單一檔案能運作，我們將設定直接寫在這裡
-let firebaseConfig;
-
-try {
-  // 嘗試讀取環境變數 (適用於開發預覽環境)
-  firebaseConfig = JSON.parse(__firebase_config);
-} catch (e) {
-  // ★★★ 如果部署到 GitHub 或其他主機，請確認這些資訊正確 ★★★
-  firebaseConfig = {
-    apiKey: "AIzaSyAbaXteigP5UTtvZ33XUIrXEumQ8HnRhqs",
-    authDomain: "album-video-246b7.firebaseapp.com",
-    projectId: "album-video-246b7",
-    storageBucket: "album-video-246b7.firebasestorage.app",
-    messagingSenderId: "1077095379252",
-    appId: "1:1077095379252:web:d86c8f21ad2b972be27561",
-    measurementId: "G-DPGPRCD160"
-  };
-}
+// --- Firebase 設定區 (環境變數版) ---
+const firebaseConfig = {
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+};
 
 // 初始化 Firebase
 const app = initializeApp(firebaseConfig || {});
