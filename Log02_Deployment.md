@@ -32,6 +32,10 @@
 | `VITE_SITE_PASSWORD` | `8888` |
 | `VITE_ADMIN_PASSWORD` | `admin` |
 
+## 4. 佈署狀態
+- [x] Secrets 設定完成。
+- [x] 自動化佈署觸發成功。
+
 ## 3. 如何佈署
 設定完 Secrets 後，你只需要在終端機執行：
 ```bash
