@@ -69,6 +69,8 @@ const App = () => {
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
+  const [adminPasswordInput, setAdminPasswordInput] = useState('');
+  const [adminError, setAdminError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(''); // 上傳進度顯示
   const [adminTab, setAdminTab] = useState('csv'); // 'csv' or 'manual'
   const [manualAlbum, setManualAlbum] = useState({
