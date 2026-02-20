@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw, Trash2, Edit2 } from 'lucide-react';
+import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw, Trash2, Edit2, Camera } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
 import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
@@ -502,14 +502,14 @@ const App = () => {
             </div>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="relative flex-1 md:w-72">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                  <Search className="h-4 w-4 text-stone-400" />
+              <div className="relative flex-1 md:w-72 group">
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                  <Search className="h-4 w-4 text-[#888888] stroke-1" />
                 </div>
                 <input
                   type="text"
                   placeholder="搜尋活動、參與者..."
-                  className="block w-full pl-10 pr-3 py-2.5 border-none rounded-[20px] leading-5 bg-[#F5F5F5] placeholder-text-mute focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary sm:text-sm transition-all shadow-sm"
+                  className="block w-full pl-11 pr-3 py-2.5 border-none rounded-[100px] leading-5 bg-[#F5F7F5] text-[#1B1B1B] placeholder-[#999999] focus:outline-none focus:bg-white focus:ring-[3px] focus:ring-primary/15 sm:text-sm transition-all duration-200"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -536,10 +536,9 @@ const App = () => {
 
           {/* Categories Filter & Sort */}
           <div className="mt-4 flex flex-wrap gap-2 pb-1 overflow-x-auto no-scrollbar items-center select-none">
-
             <button
               onClick={toggleSortOrder}
-              className="flex items-center gap-1.5 px-3 py-1 bg-white text-stone-600 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50 rounded-full text-xs font-medium transition-all mr-2"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-white text-stone-600 border border-[#EBEBEB] hover:border-primary/30 hover:text-primary hover:bg-[#F0F4F0] rounded-full text-xs font-medium transition-all mr-2"
               title={sortOrder === 'desc' ? "目前：由新到舊" : "目前：由舊到新"}
             >
               {sortOrder === 'desc' ? (
@@ -555,15 +554,15 @@ const App = () => {
               )}
             </button>
 
-            <div className="flex items-center text-stone-400 mr-2 text-xs font-medium uppercase tracking-wider border-l border-stone-300 pl-3">
+            <div className="flex items-center text-stone-400 mr-2 text-xs font-medium uppercase tracking-wider border-l border-[#EBEBEB] pl-3">
               <Filter className="w-3 h-3 mr-1" />
               篩選
             </div>
             <button
               onClick={() => setSelectedCategory('All')}
               className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${selectedCategory === 'All'
-                ? 'bg-primary text-white shadow-md'
-                : 'bg-white text-text-mute border border-stone-100 hover:bg-stone-50'
+                ? 'bg-primary text-white shadow-[0_2px_6px_rgba(58,90,64,0.2)] border-none'
+                : 'bg-white text-[#666666] border border-[#EBEBEB] hover:bg-[#F0F4F0] hover:text-primary'
                 }`}
             >
               全部
@@ -573,8 +572,8 @@ const App = () => {
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
                 className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap ${selectedCategory === cat
-                  ? 'bg-primary text-white shadow-md'
-                  : 'bg-white text-text-mute border border-stone-100 hover:bg-stone-50'
+                  ? 'bg-primary text-white shadow-[0_2px_6px_rgba(58,90,64,0.2)] border-none'
+                  : 'bg-white text-[#666666] border border-[#EBEBEB] hover:bg-[#F0F4F0] hover:text-primary'
                   }`}
               >
                 {cat}
@@ -588,16 +587,16 @@ const App = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-200px)]">
 
         {/* Results Header */}
-        <div className="mb-6 flex items-end justify-between border-b border-stone-100 pb-2">
-          <h2 className="text-xl font-bold text-text-dark flex items-center gap-2 font-serif">
-            {selectedCategory === 'All' ? '所有活動' : selectedCategory}
-            <span className="text-sm font-normal text-text-mute bg-tag-bg px-2 py-0.5 rounded-full">
-              {loading ? '載入中...' : filteredAlbums.length}
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-6">
+            <h2 className="text-[24px] font-serif font-bold text-[#1B1B1B]">
+              {selectedCategory === 'All' ? '所有活動' : selectedCategory}
+            </h2>
+            <span className="bg-[#EAEFDE] text-primary text-[14px] font-medium px-2 py-0.5 rounded-[12px] flex items-center justify-center min-w-[32px]">
+              {loading ? '...' : filteredAlbums.length}
             </span>
-          </h2>
-          <span className="text-xs text-text-mute">
-            排序方式：{sortOrder === 'desc' ? '日期 (新→舊)' : '日期 (舊→新)'}
-          </span>
+          </div>
+          <div className="w-full h-px border-b border-dashed border-[#EBEBEB] mb-8"></div>
         </div>
 
         {loading ? (
@@ -774,10 +773,10 @@ const App = () => {
               <p className="text-sm text-stone-500">此功能僅限管理員使用，請輸入管理員密碼。</p>
               <input
                 type="password"
-                placeholder="輸入管理員密碼"
-                className="w-full px-4 py-2 border border-stone-300 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                className="w-full px-4 py-3 bg-white border border-stone-200 rounded-xl focus:ring-2 focus:ring-teal-500 outline-none transition-all"
                 value={adminPasswordInput}
-                onChange={(e) => setAdminPasswordInput(e.target.value)}
+                onChange={e => setAdminPasswordInput(e.target.value)}
+                placeholder="請輸入管理密碼"
                 autoFocus
               />
               {adminError && <p className="text-red-500 text-xs font-medium">{adminError}</p>}
