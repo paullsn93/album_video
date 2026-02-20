@@ -456,7 +456,8 @@ const App = () => {
             <div className="relative">
               <input
                 type="password"
-                placeholder="請輸入密碼"
+                placeholder="請輸入通關密碼"
+                autoFocus
                 className="w-full px-4 py-3 bg-white/50 border-none outline-none focus:ring-2 focus:ring-primary transition-all text-center tracking-widest text-lg"
                 value={sitePasswordInput}
                 onChange={(e) => setSitePasswordInput(e.target.value)}
