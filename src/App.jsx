@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw } from 'lucide-react';
+import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw, Trash2, Edit2 } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot, addDoc } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 
 // --- Firebase 設定區 (環境變數版) ---
 const firebaseConfig = {
@@ -71,6 +71,8 @@ const App = () => {
   const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
   const [adminPasswordInput, setAdminPasswordInput] = useState('');
   const [adminError, setAdminError] = useState('');
+  const [isAuthorizedAdmin, setIsAuthorizedAdmin] = useState(false); // 是否已驗證管理員
+  const [editingAlbumId, setEditingAlbumId] = useState(null); // 目前編輯中的 ID
   const [uploadProgress, setUploadProgress] = useState(''); // 上傳進度顯示
   const [adminTab, setAdminTab] = useState('csv'); // 'csv' or 'manual'
   const [manualAlbum, setManualAlbum] = useState({
@@ -334,20 +336,29 @@ const App = () => {
       return;
     }
 
-    setUploadProgress('正在儲存單筆資料...');
+    setUploadProgress(editingAlbumId ? '正在更新資料...' : '正在儲存單筆資料...');
     const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'albums');
 
     try {
-      await addDoc(collectionRef, {
+      const dataToSave = {
         ...manualAlbum,
-        thumbnail: manualAlbum.thumbnail.startsWith('http') ? manualAlbum.thumbnail : undefined,
-        createdAt: new Date().toISOString()
-      });
+        thumbnail: manualAlbum.thumbnail?.startsWith('http') ? manualAlbum.thumbnail : undefined,
+        updatedAt: new Date().toISOString()
+      };
 
-      setUploadProgress('儲存成功！');
+      if (!editingAlbumId) {
+        dataToSave.createdAt = new Date().toISOString();
+        await addDoc(collectionRef, dataToSave);
+      } else {
+        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'albums', editingAlbumId);
+        await updateDoc(docRef, dataToSave);
+      }
+
+      setUploadProgress(editingAlbumId ? '更新成功！' : '儲存成功！');
       setTimeout(() => {
         setIsUploadModalOpen(false);
         setUploadProgress('');
+        setEditingAlbumId(null);
         setManualAlbum({
           name: '', category: '', participants: '',
           videoLink1: '', videoLink2: '', videoLink3: '',
@@ -358,6 +369,40 @@ const App = () => {
       console.error("儲存失敗:", error);
       setUploadProgress('儲存失敗: ' + error.message);
     }
+  };
+
+  const deleteAlbum = async (id, name) => {
+    if (!window.confirm(`確定要刪除「${name}」嗎？此動作無法復原。`)) return;
+
+    setUploadProgress('正在刪除資料...');
+    try {
+      const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'albums', id);
+      await deleteDoc(docRef);
+      setUploadProgress('刪除成功！');
+      setTimeout(() => setUploadProgress(''), 1500);
+    } catch (error) {
+      console.error("刪除失敗:", error);
+      alert('刪除失敗: ' + error.message);
+      setUploadProgress('');
+    }
+  };
+
+  const handleEditAlbum = (album) => {
+    setEditingAlbumId(album.id);
+    setManualAlbum({
+      name: album.name || '',
+      category: album.category || '',
+      participants: album.participants || '',
+      videoLink1: album.videoLink1 || '',
+      videoLink2: album.videoLink2 || '',
+      videoLink3: album.videoLink3 || '',
+      thumbnail: album.thumbnail || '',
+      link: album.link || '',
+      startDate: album.startDate || '',
+      endDate: album.endDate || ''
+    });
+    setAdminTab('manual');
+    setIsUploadModalOpen(true);
   };
 
   // --- 登入處理 ---
@@ -376,6 +421,7 @@ const App = () => {
     e.preventDefault();
     if (adminPasswordInput === ADMIN_PASSWORD) {
       setIsAdminAuthOpen(false);
+      setIsAuthorizedAdmin(true); // 標記為已授權
       setIsUploadModalOpen(true);
       setAdminError('');
       setAdminPasswordInput('');
@@ -385,9 +431,13 @@ const App = () => {
   };
 
   const openAdminCheck = () => {
-    setIsAdminAuthOpen(true);
-    setAdminError('');
-    setAdminPasswordInput('');
+    if (isAuthorizedAdmin) {
+      setIsUploadModalOpen(true);
+    } else {
+      setIsAdminAuthOpen(true);
+      setAdminError('');
+      setAdminPasswordInput('');
+    }
   };
 
   // 鎖定畫面
@@ -565,13 +615,32 @@ const App = () => {
                 key={album.id}
                 className="group bg-white rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-stone-100 overflow-hidden transition-all duration-300 flex flex-col h-full relative"
               >
-                <div className="absolute top-3 left-3 z-10 flex flex-wrap gap-1">
+                <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1">
                   {album.category && album.category.replace(/^"|"$/g, '').split(/,\s*/).map((tag, idx) => (
                     <span key={idx} className="bg-white/90 backdrop-blur-md text-stone-700 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-stone-100">
                       {tag.trim()}
                     </span>
                   ))}
                 </div>
+
+                {isAuthorizedAdmin && (
+                  <div className="absolute top-3 right-3 z-30 flex gap-2">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); }}
+                      className="p-2 bg-white/90 backdrop-blur-md text-teal-600 rounded-lg shadow-sm border border-stone-100 hover:bg-teal-50 transition-colors"
+                      title="編輯相簿"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); deleteAlbum(album.id, album.name); }}
+                      className="p-2 bg-white/90 backdrop-blur-md text-red-600 rounded-lg shadow-sm border border-stone-100 hover:bg-red-50 transition-colors"
+                      title="刪除相簿"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
                 <a
                   href={album.link || '#'}
@@ -739,7 +808,9 @@ const App = () => {
             <div className="p-6 md:p-8 flex-1 overflow-y-auto">
               <div className="flex items-center gap-2 mb-6">
                 <ShieldCheck className="w-8 h-8 text-teal-600" />
-                <h3 className="text-2xl font-bold text-stone-800">管理面板</h3>
+                <h3 className="text-2xl font-bold text-stone-800">
+                  {editingAlbumId ? '編輯相簿資料' : '管理面板'}
+                </h3>
               </div>
 
               {/* Tabs */}
@@ -885,24 +956,32 @@ const App = () => {
                       />
                     </div>
                   </div>
-                  <div className="md:col-span-2 pt-4 flex gap-3">
+                  <div className="md:col-span-2 pt-4 border-t border-stone-100 flex gap-3">
                     <button
                       type="submit"
-                      className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
+                      className="flex-1 py-3 bg-teal-600 text-white rounded-xl font-bold hover:bg-teal-700 transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
                     >
-                      儲存到雲端
+                      <Cloud className="w-5 h-5" />
+                      {editingAlbumId ? '儲存修改' : '儲存到雲端'}
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setManualAlbum({
-                        name: '', category: '', participants: '',
-                        videoLink1: '', videoLink2: '', videoLink3: '',
-                        thumbnail: '', link: '', startDate: '', endDate: ''
-                      })}
-                      className="px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold rounded-xl transition-all"
-                    >
-                      重置
-                    </button>
+                    {editingAlbumId && (
+                      <button
+                        type="button"
+                        onClick={() => { setEditingAlbumId(null); setManualAlbum({ name: '', category: '', participants: '', videoLink1: '', videoLink2: '', videoLink3: '', thumbnail: '', link: '', startDate: '', endDate: '' }); setIsUploadModalOpen(false); }}
+                        className="px-6 py-3 bg-stone-100 text-stone-600 rounded-xl font-bold hover:bg-stone-200 transition-all"
+                      >
+                        取消編輯
+                      </button>
+                    )}
+                    {!editingAlbumId && (
+                      <button
+                        type="button"
+                        onClick={() => setManualAlbum({ name: '', category: '', participants: '', videoLink1: '', videoLink2: '', videoLink3: '', thumbnail: '', link: '', startDate: '', endDate: '' })}
+                        className="px-6 py-3 bg-stone-100 text-stone-600 rounded-xl font-bold hover:bg-stone-200 transition-all"
+                      >
+                        重置
+                      </button>
+                    )}
                   </div>
                 </form>
               )}
