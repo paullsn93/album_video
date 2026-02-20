@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Search, Calendar, Users, ExternalLink, Upload, Filter, Image as ImageIcon, X, ChevronUp, PlayCircle, Film, Lock, ShieldCheck, ArrowDownWideNarrow, ArrowUpNarrowWide, Cloud, RefreshCw } from 'lucide-react';
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInAnonymously, onAuthStateChanged, signInWithCustomToken } from 'firebase/auth';
-import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot } from 'firebase/firestore';
+import { getFirestore, collection, getDocs, doc, writeBatch, query, onSnapshot, addDoc } from 'firebase/firestore';
 
 // --- Firebase 設定區 (環境變數版) ---
 const firebaseConfig = {
@@ -69,9 +69,13 @@ const App = () => {
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [isAdminAuthOpen, setIsAdminAuthOpen] = useState(false);
-  const [adminPasswordInput, setAdminPasswordInput] = useState('');
-  const [adminError, setAdminError] = useState('');
   const [uploadProgress, setUploadProgress] = useState(''); // 上傳進度顯示
+  const [adminTab, setAdminTab] = useState('csv'); // 'csv' or 'manual'
+  const [manualAlbum, setManualAlbum] = useState({
+    name: '', category: '', participants: '',
+    videoLink1: '', videoLink2: '', videoLink3: '',
+    thumbnail: '', link: '', startDate: '', endDate: ''
+  });
 
   // 1. Firebase Auth 初始化 (背景執行，不阻擋)
   useEffect(() => {
@@ -319,6 +323,39 @@ const App = () => {
       }
     };
     reader.readAsText(file);
+  };
+
+  const saveManualEntry = async (e) => {
+    e.preventDefault();
+    if (!manualAlbum.name) {
+      alert('請至少填寫相簿名稱');
+      return;
+    }
+
+    setUploadProgress('正在儲存單筆資料...');
+    const collectionRef = collection(db, 'artifacts', appId, 'public', 'data', 'albums');
+
+    try {
+      await addDoc(collectionRef, {
+        ...manualAlbum,
+        thumbnail: manualAlbum.thumbnail.startsWith('http') ? manualAlbum.thumbnail : undefined,
+        createdAt: new Date().toISOString()
+      });
+
+      setUploadProgress('儲存成功！');
+      setTimeout(() => {
+        setIsUploadModalOpen(false);
+        setUploadProgress('');
+        setManualAlbum({
+          name: '', category: '', participants: '',
+          videoLink1: '', videoLink2: '', videoLink3: '',
+          thumbnail: '', link: '', startDate: '', endDate: ''
+        });
+      }, 1500);
+    } catch (error) {
+      console.error("儲存失敗:", error);
+      setUploadProgress('儲存失敗: ' + error.message);
+    }
   };
 
   // --- 登入處理 ---
@@ -688,54 +725,196 @@ const App = () => {
 
       {isUploadModalOpen && (
         <div className="fixed inset-0 bg-stone-900/60 backdrop-blur-md z-50 flex items-center justify-center p-4 transition-opacity duration-300">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 animate-in fade-in zoom-in duration-200 relative overflow-hidden">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200 relative overflow-hidden">
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-teal-400 to-emerald-500"></div>
             <button
               onClick={() => setIsUploadModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-600 transition-colors"
+              className="absolute top-4 right-4 p-1.5 hover:bg-stone-100 rounded-full text-stone-400 hover:text-stone-600 transition-colors z-10"
             >
               <X className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2 mb-2">
-              <Cloud className="w-6 h-6 text-teal-600" />
-              <h3 className="text-2xl font-bold text-stone-800">更新雲端資料庫</h3>
-            </div>
-
-            <p className="text-sm text-stone-500 mb-6 leading-relaxed">
-              請上傳您的 <code>.csv</code> 檔案。系統會將內容同步至雲端，所有使用者重新整理後皆可看到最新資料。
-              <br />
-              <span className="text-amber-600 font-medium">注意：</span>這將覆蓋現有資料庫內容。
-            </p>
-
-            {uploadProgress ? (
-              <div className="w-full py-8 text-center">
-                <RefreshCw className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-2" />
-                <p className="text-stone-600 font-medium">{uploadProgress}</p>
+            <div className="p-6 md:p-8 flex-1 overflow-y-auto">
+              <div className="flex items-center gap-2 mb-6">
+                <ShieldCheck className="w-8 h-8 text-teal-600" />
+                <h3 className="text-2xl font-bold text-stone-800">管理面板</h3>
               </div>
-            ) : (
-              <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-stone-200 border-dashed rounded-xl cursor-pointer hover:bg-teal-50/50 hover:border-teal-400 transition-all group relative overflow-hidden">
-                <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
-                  <div className="p-3 bg-stone-100 rounded-full mb-3 group-hover:bg-white group-hover:text-teal-500 transition-all shadow-sm">
-                    <Upload className="w-6 h-6 text-stone-400 group-hover:text-teal-500" />
-                  </div>
-                  <p className="mb-1 text-sm text-stone-600 font-medium group-hover:text-teal-700">點擊選擇檔案 或 拖曳至此</p>
-                  <p className="text-xs text-stone-400">支援 CSV 格式</p>
-                </div>
-                <input type="file" className="hidden" accept=".csv,.tsv,.txt" onChange={handleFileUpload} />
-              </label>
-            )}
 
-            {!uploadProgress && (
-              <div className="mt-8 flex justify-end gap-3">
+              {/* Tabs */}
+              <div className="flex border-b border-stone-200 mb-6">
                 <button
-                  onClick={() => setIsUploadModalOpen(false)}
-                  className="px-5 py-2 text-stone-500 font-medium hover:text-stone-800 hover:bg-stone-100 rounded-lg transition-colors"
+                  onClick={() => setAdminTab('csv')}
+                  className={`px-6 py-2 font-medium text-sm transition-all border-b-2 ${adminTab === 'csv' ? 'border-teal-600 text-teal-600' : 'border-transparent text-stone-500 hover:text-stone-700'}`}
                 >
-                  關閉
+                  CSV 批量更新
+                </button>
+                <button
+                  onClick={() => setAdminTab('manual')}
+                  className={`px-6 py-2 font-medium text-sm transition-all border-b-2 ${adminTab === 'manual' ? 'border-teal-600 text-teal-600' : 'border-transparent text-stone-500 hover:text-stone-700'}`}
+                >
+                  手動新增單筆
                 </button>
               </div>
-            )}
+
+              {uploadProgress ? (
+                <div className="w-full py-12 text-center">
+                  <RefreshCw className="w-10 h-10 text-teal-600 animate-spin mx-auto mb-4" />
+                  <p className="text-stone-600 font-bold text-lg">{uploadProgress}</p>
+                </div>
+              ) : adminTab === 'csv' ? (
+                <div className="space-y-6">
+                  <div className="bg-amber-50 border-l-4 border-amber-400 p-4">
+                    <p className="text-sm text-amber-800 leading-relaxed">
+                      <span className="font-bold">注意：</span>上傳 CSV 將會 <span className="font-bold underline">覆蓋現有所有資料</span>。
+                      建議先進行備份。
+                    </p>
+                  </div>
+
+                  <label className="flex flex-col items-center justify-center w-full h-48 border-2 border-stone-200 border-dashed rounded-xl cursor-pointer hover:bg-teal-50/50 hover:border-teal-400 transition-all group relative overflow-hidden">
+                    <div className="flex flex-col items-center justify-center pt-5 pb-6 z-10">
+                      <div className="p-4 bg-stone-100 rounded-full mb-3 group-hover:bg-white group-hover:text-teal-500 transition-all shadow-sm">
+                        <Upload className="w-8 h-8 text-stone-400 group-hover:text-teal-500" />
+                      </div>
+                      <p className="mb-1 text-base text-stone-600 font-medium group-hover:text-teal-700">點擊選擇檔案 或 拖曳至此</p>
+                      <p className="text-xs text-stone-400">支援 CSV 格式 (UTF-8)</p>
+                    </div>
+                    <input type="file" className="hidden" accept=".csv,.tsv,.txt" onChange={handleFileUpload} />
+                  </label>
+                </div>
+              ) : (
+                <form onSubmit={saveManualEntry} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">相簿名稱 *</label>
+                    <input
+                      required
+                      type="text"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.name}
+                      onChange={e => setManualAlbum({ ...manualAlbum, name: e.target.value })}
+                      placeholder="例如：20240324探訪柴山秘境"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">分類 (逗號分隔)</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.category}
+                      onChange={e => setManualAlbum({ ...manualAlbum, category: e.target.value })}
+                      placeholder="國內旅遊, 爬山"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">參與者</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.participants}
+                      onChange={e => setManualAlbum({ ...manualAlbum, participants: e.target.value })}
+                      placeholder="多人可用空格分隔"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">開始日期</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.startDate}
+                      onChange={e => setManualAlbum({ ...manualAlbum, startDate: e.target.value })}
+                      placeholder="YYYY/MM/DD"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">結束日期</label>
+                    <input
+                      type="text"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.endDate}
+                      onChange={e => setManualAlbum({ ...manualAlbum, endDate: e.target.value })}
+                      placeholder="YYYY/MM/DD"
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">相簿連結</label>
+                    <input
+                      type="url"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.link}
+                      onChange={e => setManualAlbum({ ...manualAlbum, link: e.target.value })}
+                      placeholder="https://photos.app.goo.gl/..."
+                    />
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-xs font-bold text-stone-500 uppercase mb-1">封面圖網址 (須 http 開頭)</label>
+                    <input
+                      type="url"
+                      className="w-full px-3 py-2 border border-stone-200 rounded-lg focus:ring-2 focus:ring-teal-500 outline-none"
+                      value={manualAlbum.thumbnail}
+                      onChange={e => setManualAlbum({ ...manualAlbum, thumbnail: e.target.value })}
+                      placeholder="https://lh3.googleusercontent.com/..."
+                    />
+                  </div>
+                  <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase mb-1">影片 1</label>
+                      <input
+                        type="url"
+                        className="w-full px-2 py-2 border border-stone-200 rounded-lg text-sm"
+                        value={manualAlbum.videoLink1}
+                        onChange={e => setManualAlbum({ ...manualAlbum, videoLink1: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase mb-1">影片 2</label>
+                      <input
+                        type="url"
+                        className="w-full px-2 py-2 border border-stone-200 rounded-lg text-sm"
+                        value={manualAlbum.videoLink2}
+                        onChange={e => setManualAlbum({ ...manualAlbum, videoLink2: e.target.value })}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-stone-500 uppercase mb-1">影片 3</label>
+                      <input
+                        type="url"
+                        className="w-full px-2 py-2 border border-stone-200 rounded-lg text-sm"
+                        value={manualAlbum.videoLink3}
+                        onChange={e => setManualAlbum({ ...manualAlbum, videoLink3: e.target.value })}
+                      />
+                    </div>
+                  </div>
+                  <div className="md:col-span-2 pt-4 flex gap-3">
+                    <button
+                      type="submit"
+                      className="flex-1 py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-xl transition-all shadow-md active:scale-95"
+                    >
+                      儲存到雲端
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setManualAlbum({
+                        name: '', category: '', participants: '',
+                        videoLink1: '', videoLink2: '', videoLink3: '',
+                        thumbnail: '', link: '', startDate: '', endDate: ''
+                      })}
+                      className="px-6 py-3 bg-stone-100 hover:bg-stone-200 text-stone-600 font-bold rounded-xl transition-all"
+                    >
+                      重置
+                    </button>
+                  </div>
+                </form>
+              )}
+            </div>
+
+            <div className="p-4 bg-stone-50 border-t border-stone-200 flex justify-end">
+              <button
+                onClick={() => setIsUploadModalOpen(false)}
+                className="px-6 py-2 text-stone-500 font-medium hover:text-stone-800 transition-colors"
+                disabled={!!uploadProgress}
+              >
+                關閉面板
+              </button>
+            </div>
           </div>
         </div>
       )}
