@@ -611,7 +611,7 @@ const App = () => {
             {filteredAlbums.map((album) => (
               <article
                 key={album.id}
-                className="group bg-white rounded-global shadow-soft hover:shadow-xl hover:-translate-y-1 overflow-hidden transition-all duration-300 flex flex-col h-full relative border-none"
+                className="group bg-white rounded-global shadow-soft hover:shadow-[0_12px_32px_rgba(58,90,64,0.12)] hover:-translate-y-1 overflow-hidden transition-all duration-300 ease-in-out flex flex-col h-full relative border-none"
               >
                 <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1">
                   {album.category && album.category.replace(/^"|"$/g, '').split(/,\s*/).map((tag, idx) => (
@@ -644,7 +644,7 @@ const App = () => {
                   href={album.link || '#'}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className={`block h-52 w-full ${getPlaceholderColor(album.category || '')} relative overflow-hidden cursor-pointer group-hover:brightness-105 transition-all`}
+                  className={`block aspect-[16/9] w-full ${getPlaceholderColor(album.category || '')} relative overflow-hidden cursor-pointer group-hover:brightness-110 transition-all`}
                   title={album.link ? "點擊開啟 Google 相簿" : "無相簿連結"}
                 >
                   {album.thumbnail ? (
@@ -653,7 +653,7 @@ const App = () => {
                         src={album.thumbnail}
                         alt={album.name}
                         referrerPolicy="no-referrer"
-                        className="w-full h-full object-cover transform group-hover:scale-110 transition-transform duration-700"
+                        className="w-full h-full object-cover transform scale-100 group-hover:scale-110 transition-transform duration-700 ease-in-out"
                         loading="lazy"
                         onError={(e) => {
                           e.target.style.display = 'none';
@@ -670,19 +670,23 @@ const App = () => {
                   )}
 
                   {album.link && (
-                    <div className="absolute bottom-3 right-3 bg-black/60 text-white text-xs px-2.5 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity duration-300 transform translate-y-2 group-hover:translate-y-0">
-                      瀏覽相簿 <ExternalLink className="w-3 h-3" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent z-10"></div>
+                  )}
+
+                  {album.link && (
+                    <div className="absolute bottom-3 right-3 bg-white/20 text-white text-[10px] px-2 py-1 rounded-full backdrop-blur-sm flex items-center gap-1.5 z-20 opacity-80 border border-white/20">
+                      瀏覽相簿 <ExternalLink className="w-2.5 h-2.5" />
                     </div>
                   )}
                 </a>
 
-                <div className="p-5 flex-1 flex flex-col">
-                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-2">
+                <div className="p-5 flex-1 flex flex-col pt-4">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-white absolute top-[170px] left-5 z-20 pointer-events-none drop-shadow-sm">
                     <Calendar className="w-3.5 h-3.5" />
                     <time>{album.startDate}</time>
                     {album.startDate !== album.endDate && album.endDate && (
                       <>
-                        <span className="text-stone-300">|</span>
+                        <span className="text-white/60">|</span>
                         <time>{album.endDate}</time>
                       </>
                     )}
@@ -726,9 +730,9 @@ const App = () => {
                         )}
                       </div>
                     ) : (
-                      <div className="flex items-center gap-2 text-text-mute text-xs italic opacity-60">
-                        <Film className="w-3.5 h-3.5" />
-                        <span>尚未上傳精彩回憶影片</span>
+                      <div className="flex flex-col items-center justify-center w-full py-4 text-[#B7B7B7] gap-1.5 border-t border-stone-50">
+                        <Camera className="w-4 h-4 opacity-40" />
+                        <span className="text-[13px] tracking-[1px] font-medium">無精彩回憶影片紀錄</span>
                       </div>
                     )}
                   </div>
