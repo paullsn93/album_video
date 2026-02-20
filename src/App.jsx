@@ -443,34 +443,32 @@ const App = () => {
   // 鎖定畫面
   if (isSiteLocked) {
     return (
-      <div className="min-h-screen bg-stone-100 flex items-center justify-center p-4">
-        <div className="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
-          <div className="mx-auto w-20 h-20 bg-teal-100 text-teal-600 rounded-full flex items-center justify-center mb-4">
+      <div className="min-h-screen bg-[linear-gradient(135deg,#EAEFDE,#DAD7CD)] flex items-center justify-center p-4">
+        <div className="glass-morphism p-8 max-w-md w-full text-center space-y-6 animate-in fade-in zoom-in duration-300">
+          <div className="mx-auto w-20 h-20 bg-primary/10 text-primary rounded-full flex items-center justify-center mb-4">
             <Lock className="w-10 h-10" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-stone-800 mb-2">茶友時光 - 專屬回憶錄</h1>
-            <p className="text-stone-500">此頁面為私人珍藏，請輸入通關密碼以繼續。</p>
+            <h1 className="text-2xl font-bold text-text-dark mb-2 font-serif">茶友時光 - 專屬回憶錄</h1>
+            <p className="text-text-mute">此頁面為私人珍藏，請輸入通關密碼以繼續。</p>
           </div>
           <form onSubmit={handleSiteLogin} className="space-y-4">
             <div className="relative">
               <input
                 type="password"
                 placeholder="請輸入密碼"
-                className="w-full px-4 py-3 rounded-lg border border-stone-300 focus:ring-2 focus:ring-teal-500 focus:border-teal-500 outline-none transition-all text-center tracking-widest text-lg"
+                className="w-full px-4 py-3 bg-white/50 border-none outline-none focus:ring-2 focus:ring-primary transition-all text-center tracking-widest text-lg"
                 value={sitePasswordInput}
                 onChange={(e) => setSitePasswordInput(e.target.value)}
-                autoFocus
               />
             </div>
-            {loginError && <p className="text-red-500 text-sm font-medium">{loginError}</p>}
+            {loginError && <p className="text-accent text-sm font-medium">{loginError}</p>}
             <button
               type="submit"
-              className="w-full py-3 bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg transition-colors shadow-md"
+              className="w-full bg-primary hover:opacity-90 active:scale-[0.98] text-white py-4 font-bold transition-all shadow-md flex items-center justify-center gap-2 bg-gradient-to-b from-primary to-[#2D4531]"
             >
-              進入瀏覽
+              開啟回憶錄
             </button>
-
           </form>
         </div>
       </div>
@@ -479,20 +477,20 @@ const App = () => {
 
   // 主程式介面
   return (
-    <div className="min-h-screen bg-stone-50 text-stone-800 font-sans">
+    <div className="min-h-screen bg-bg-cream text-text-dark font-sans">
       {/* Header Section */}
-      <header className="bg-white shadow-sm border-b border-stone-200 sticky top-0 z-30 transition-all duration-300">
+      <header className="bg-bg-cream sticky top-0 z-30 transition-all duration-300">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div
               className="flex items-center gap-3 cursor-pointer group"
               onClick={() => { setSearchTerm(''); setSelectedCategory('All'); scrollToTop(); }}
             >
-              <div className="p-2.5 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300 transform group-hover:scale-105">
+              <div className="p-2.5 bg-primary rounded-xl shadow-lg group-hover:shadow-xl transition-all duration-300 transform group-hover:scale-105">
                 <ImageIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-stone-900 tracking-tight group-hover:text-teal-700 transition-colors">茶友時光</h1>
+                <h1 className="text-2xl font-bold text-text-dark tracking-tight group-hover:text-primary transition-colors font-serif">茶友時光</h1>
                 <p className="text-xs text-stone-500 font-medium flex items-center gap-1">
                   {loading ? (
                     <span className="flex items-center text-teal-600"><RefreshCw className="w-3 h-3 animate-spin mr-1" /> 讀取雲端資料...</span>
@@ -511,7 +509,7 @@ const App = () => {
                 <input
                   type="text"
                   placeholder="搜尋活動、參與者..."
-                  className="block w-full pl-10 pr-3 py-2.5 border border-stone-200 rounded-full leading-5 bg-stone-50 placeholder-stone-400 focus:outline-none focus:bg-white focus:ring-2 focus:ring-teal-500 focus:border-teal-500 sm:text-sm transition-all shadow-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border-none rounded-[20px] leading-5 bg-[#F5F5F5] placeholder-text-mute focus:outline-none focus:bg-white focus:ring-2 focus:ring-primary sm:text-sm transition-all shadow-sm"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
@@ -563,9 +561,9 @@ const App = () => {
             </div>
             <button
               onClick={() => setSelectedCategory('All')}
-              className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 ${selectedCategory === 'All'
-                ? 'bg-stone-800 text-white shadow-md transform scale-105'
-                : 'bg-white text-stone-600 border border-stone-200 hover:border-stone-400 hover:bg-stone-50'
+              className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 ${selectedCategory === 'All'
+                ? 'bg-primary text-white shadow-md'
+                : 'bg-white text-text-mute border border-stone-100 hover:bg-stone-50'
                 }`}
             >
               全部
@@ -574,9 +572,9 @@ const App = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-all duration-200 whitespace-nowrap ${selectedCategory === cat
-                  ? 'bg-teal-600 text-white shadow-md transform scale-105'
-                  : 'bg-white text-stone-600 border border-stone-200 hover:border-teal-300 hover:text-teal-600 hover:bg-teal-50'
+                className={`px-4 py-1.5 rounded-full text-xs font-bold transition-all duration-200 whitespace-nowrap ${selectedCategory === cat
+                  ? 'bg-primary text-white shadow-md'
+                  : 'bg-white text-text-mute border border-stone-100 hover:bg-stone-50'
                   }`}
               >
                 {cat}
@@ -590,14 +588,14 @@ const App = () => {
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 min-h-[calc(100vh-200px)]">
 
         {/* Results Header */}
-        <div className="mb-6 flex items-end justify-between border-b border-stone-200 pb-2">
-          <h2 className="text-xl font-bold text-stone-800 flex items-center gap-2">
+        <div className="mb-6 flex items-end justify-between border-b border-stone-100 pb-2">
+          <h2 className="text-xl font-bold text-text-dark flex items-center gap-2 font-serif">
             {selectedCategory === 'All' ? '所有活動' : selectedCategory}
-            <span className="text-sm font-normal text-stone-500 bg-stone-100 px-2 py-0.5 rounded-full">
+            <span className="text-sm font-normal text-text-mute bg-tag-bg px-2 py-0.5 rounded-full">
               {loading ? '載入中...' : filteredAlbums.length}
             </span>
           </h2>
-          <span className="text-xs text-stone-400">
+          <span className="text-xs text-text-mute">
             排序方式：{sortOrder === 'desc' ? '日期 (新→舊)' : '日期 (舊→新)'}
           </span>
         </div>
@@ -613,11 +611,11 @@ const App = () => {
             {filteredAlbums.map((album) => (
               <article
                 key={album.id}
-                className="group bg-white rounded-xl shadow-sm hover:shadow-xl hover:-translate-y-1 border border-stone-100 overflow-hidden transition-all duration-300 flex flex-col h-full relative"
+                className="group bg-white rounded-global shadow-soft hover:shadow-xl hover:-translate-y-1 overflow-hidden transition-all duration-300 flex flex-col h-full relative border-none"
               >
                 <div className="absolute top-3 left-3 z-20 flex flex-wrap gap-1">
                   {album.category && album.category.replace(/^"|"$/g, '').split(/,\s*/).map((tag, idx) => (
-                    <span key={idx} className="bg-white/90 backdrop-blur-md text-stone-700 text-[10px] font-bold px-2 py-1 rounded shadow-sm border border-stone-100">
+                    <span key={idx} className="bg-tag-bg text-primary text-[10px] font-bold px-2 py-1 rounded shadow-sm">
                       {tag.trim()}
                     </span>
                   ))}
@@ -627,14 +625,14 @@ const App = () => {
                   <div className="absolute top-3 right-3 z-30 flex gap-2">
                     <button
                       onClick={(e) => { e.stopPropagation(); handleEditAlbum(album); }}
-                      className="p-2 bg-white/90 backdrop-blur-md text-teal-600 rounded-lg shadow-sm border border-stone-100 hover:bg-teal-50 transition-colors"
+                      className="p-2 bg-white/90 backdrop-blur-md text-primary rounded-lg shadow-sm hover:bg-tag-bg transition-colors"
                       title="編輯相簿"
                     >
                       <Edit2 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); deleteAlbum(album.id, album.name); }}
-                      className="p-2 bg-white/90 backdrop-blur-md text-red-600 rounded-lg shadow-sm border border-stone-100 hover:bg-red-50 transition-colors"
+                      className="p-2 bg-white/90 backdrop-blur-md text-accent rounded-lg shadow-sm hover:bg-accent/10 transition-colors"
                       title="刪除相簿"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -679,7 +677,7 @@ const App = () => {
                 </a>
 
                 <div className="p-5 flex-1 flex flex-col">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-teal-600 mb-2">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-primary mb-2">
                     <Calendar className="w-3.5 h-3.5" />
                     <time>{album.startDate}</time>
                     {album.startDate !== album.endDate && album.endDate && (
@@ -690,7 +688,7 @@ const App = () => {
                     )}
                   </div>
 
-                  <h3 className="text-lg font-bold text-stone-800 leading-snug mb-3 line-clamp-2 group-hover:text-teal-700 transition-colors">
+                  <h3 className="text-lg font-bold text-text-dark leading-snug mb-3 line-clamp-2 group-hover:text-primary transition-colors font-serif">
                     <a href={album.link || '#'} target="_blank" rel="noopener noreferrer">
                       {album.name}
                     </a>
@@ -705,37 +703,32 @@ const App = () => {
                     </div>
                   </div>
 
-                  <div className="mt-auto pt-4 border-t border-stone-100 flex items-center gap-2 flex-wrap min-h-[40px]">
+                  <div className="mt-auto pt-4 border-t border-stone-50 flex items-center gap-2 flex-wrap min-h-[40px]">
                     {(album.videoLink1 || album.videoLink2 || album.videoLink3) ? (
                       <div className="flex gap-2 w-full">
                         {album.videoLink1 && (
-                          <a href={album.videoLink1} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 group/btn">
+                          <a href={album.videoLink1} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent/[0.08] text-accent rounded-lg text-xs font-bold hover:bg-accent/10 transition-colors border border-accent/20 group/btn">
                             <PlayCircle className="w-3.5 h-3.5 group-hover/btn:fill-current" />
                             <span className="truncate">影片 1</span>
                           </a>
                         )}
                         {album.videoLink2 && (
-                          <a href={album.videoLink2} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 group/btn">
+                          <a href={album.videoLink2} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent/[0.08] text-accent rounded-lg text-xs font-bold hover:bg-accent/10 transition-colors border border-accent/20 group/btn">
                             <PlayCircle className="w-3.5 h-3.5 group-hover/btn:fill-current" />
                             <span className="truncate">影片 2</span>
                           </a>
                         )}
-                        {!album.videoLink2 && !album.videoLink3 && (
-                          <span className="text-[10px] text-stone-400 self-center ml-auto">
-                            <Film className="w-3 h-3 inline mr-1" />
-                            紀錄影片
-                          </span>
-                        )}
                         {album.videoLink3 && (
-                          <a href={album.videoLink3} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-red-50 text-red-600 rounded-lg text-xs font-medium hover:bg-red-100 transition-colors border border-red-100 group/btn">
+                          <a href={album.videoLink3} target="_blank" rel="noopener noreferrer" className="flex-1 flex items-center justify-center gap-1.5 px-3 py-1.5 bg-accent/[0.08] text-accent rounded-lg text-xs font-bold hover:bg-accent/10 transition-colors border border-accent/20 group/btn">
                             <PlayCircle className="w-3.5 h-3.5 group-hover/btn:fill-current" />
                             <span className="truncate">影片 3</span>
                           </a>
                         )}
                       </div>
                     ) : (
-                      <div className="w-full text-center">
-                        <span className="text-[10px] text-stone-300 italic">無影片紀錄</span>
+                      <div className="flex items-center gap-2 text-text-mute text-xs italic opacity-60">
+                        <Film className="w-3.5 h-3.5" />
+                        <span>尚未上傳精彩回憶影片</span>
                       </div>
                     )}
                   </div>
